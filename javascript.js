@@ -47,7 +47,7 @@ function animate(string){
       throw 'Invalid String';
     }
   }
-  var width = +xValues[xValues.length -1] + padding + +paths[paths.length -1].getBBox()[1];
+  var width = +xValues[xValues.length -1] + +paths[paths.length -1].getBBox()[1];
   if(width > viewBox[2]){
     throw 'String is too long. I might implement multiple lines later.';
   }
