@@ -1,32 +1,36 @@
-function animate(string){
+function animate(string, nodes,y,hideNodes){
   var svg = document.getElementById('svg');
-
-  var suitableNodes = [3,4,5,6,7,8,9,10,11,12,14,15,16,17];
-
-  if(string.length > suitableNodes.length){
-    throw 'String is too long. Not enough suitable paths to transform.';
+  if (typeof y === 'undefined'){
+    y = 100;
   }
+  if(!nodes){
+    var suitableNodes = [3,4,5,6,7,8,9,10,11,12,14,15,16,17];
 
-  //Choose the nodes to transform;
-  var chosenNodes = [];
-  var theChosenOne;
-  while(chosenNodes.length < string.length){
-    theChosenOne = Math.floor(Math.random()*suitableNodes.length);
-    chosenNodes.push(svg.childNodes[suitableNodes.splice(theChosenOne,1)[0]]);
-  }
+    if(string.length > suitableNodes.length){
+      throw 'String is too long. Not enough suitable paths to transform.';
+    }
 
-  //Order them from left to right based on the midpoint.
-  var midPoints = [];
-  for( var i =0; i< chosenNodes.length; i++){
-    midPoints[i] = ((new Path(chosenNodes[i].getAttribute('d'))).getMidPoint()[0]);
-  }
+    //Choose the nodes to transform;
+    var chosenNodes = [];
+    var theChosenOne;
+    while(chosenNodes.length < string.length){
+      theChosenOne = Math.floor(Math.random()*suitableNodes.length);
+      chosenNodes.push(svg.childNodes[suitableNodes.splice(theChosenOne,1)[0]]);
+    }
 
-  var sortedMidPoints = midPoints.slice().sort();
-  var sortedChosenNodes = [];
-  for(var i =0; i < chosenNodes.length; i++){
-    theChosenOne = midPoints.indexOf(sortedMidPoints[i]);
-    sortedChosenNodes[i] = chosenNodes[theChosenOne];
-    midPoints[theChosenOne] = null;
+    //Order them from left to right based on the midpoint.
+    var midPoints = [];
+    for( var i =0; i< chosenNodes.length; i++){
+      midPoints[i] = ((new Path(chosenNodes[i].getAttribute('d'))).getMidPoint()[0]);
+    }
+
+    var sortedMidPoints = midPoints.slice().sort();
+    nodes = [];
+    for(var i =0; i < chosenNodes.length; i++){
+      theChosenOne = midPoints.indexOf(sortedMidPoints[i]);
+      nodes[i] = chosenNodes[theChosenOne];
+      midPoints[theChosenOne] = null;
+    }
   }
 
   var viewBox = svg.getAttribute('viewBox').split(/[ ,]+/);
@@ -53,26 +57,45 @@ function animate(string){
   }
   var leftMargin = (viewBox[2] - width)/2 + +viewBox[0];
   for(var i =0; i < string.length; i++){
-    (new PathElement(sortedChosenNodes[i])).animateTo(paths[i].translatePath(xValues[i] + +leftMargin, 100));
-    //(new PathElement(sortedChosenNodes[i])).animateTo(paths[i]);
+    (new PathElement(nodes[i])).animateTo(paths[i].translatePath(xValues[i] + +leftMargin, y));
+    //(new PathElement(nodes[i])).animateTo(paths[i]);
   }
-  for(var i =2; i < svg.childNodes.length; i++){
-    if(sortedChosenNodes.indexOf(svg.childNodes[i]) == -1){
-      svg.childNodes[i].style.transition = "opacity 1s";
-      svg.childNodes[i].style.opacity = "0";
+  if(typeof hideNodes === 'undefined' || hideNodes === true){
+    for(var i =2; i < svg.childNodes.length; i++){
+      if(nodes.indexOf(svg.childNodes[i]) == -1){
+        svg.childNodes[i].style.transition = "opacity 1s";
+        svg.childNodes[i].style.opacity = "0";
+      }
     }
-
   }
 }
 
 window.onload = onLoad;
 
 function onLoad(){
-  var string = getParameterByName('string');
-  if(string.length > 0){
-    animate(string);
+  if(getParameterByName('HappyNewYear') == 'true'){
+    console.log('Happy New Year!');
+    var happyNodes = [svg.childNodes[9],svg.childNodes[12],svg.childNodes[10],svg.childNodes[11],svg.childNodes[8]];
+    animate('Happy',happyNodes,20,false);
+    var newNodes = [svg.childNodes[6],svg.childNodes[5],svg.childNodes[4]];
+    animate('New',newNodes,150,false);
+    var yearNodes = [svg.childNodes[14],svg.childNodes[15],svg.childNodes[16],svg.childNodes[17]];
+    animate('Year',yearNodes,280,false);
+    var nodes = happyNodes.concat(newNodes.concat(yearNodes));
+    for(var i =2; i < svg.childNodes.length; i++){
+      if(nodes.indexOf(svg.childNodes[i]) == -1){
+        svg.childNodes[i].style.transition = "opacity 1s";
+        svg.childNodes[i].style.opacity = "0";
+      }
+    }
+  }else{
+    var string = getParameterByName('string');
+    if(string.length > 0){
+      animate(string);
+    }
   }
 }
+
 
 function getParameterByName(name) {
   name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");

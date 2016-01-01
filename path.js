@@ -500,7 +500,6 @@ Path.countNumberOfCurvesInSubPath = function(arrayOfSegmentsInCanonicalForm){
 }
 
 
-
 function PathElement(element){
   this.element = element;
   this.path = new Path(element.getAttribute('d'));
@@ -540,11 +539,16 @@ PathElement.prototype.animateTo = function(animateToPath){
 }
 
 PathElement.prototype.animationStep = function(initialPathArray,targetPathArray,that){
+  var tol = 1e-6;
+
   var currentPathArray = [];
   for(var i=0; i <initialPathArray.length; i++){
     currentPathArray.push(initialPathArray[i].slice());
     for(var j =1; j < currentPathArray[i].length; j++){
       currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * that.animationTime + +initialPathArray[i][j];
+      if(Math.abs(currentPathArray[i][j]) < tol){
+          currentPathArray[i][j] = 0;
+      }
     }
   }
   that.path = Path.convertArrayToString(currentPathArray)
