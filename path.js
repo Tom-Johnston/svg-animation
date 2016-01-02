@@ -503,9 +503,16 @@ Path.countNumberOfCurvesInSubPath = function(arrayOfSegmentsInCanonicalForm){
 function PathElement(element){
   this.element = element;
   this.path = new Path(element.getAttribute('d'));
+  this.initalPath = this.path;
 }
 
-PathElement.prototype.animateTo = function(animateToPath){
+PathElement.prototype.animateTo = function(animateToPath,x1,y1,x2,y2,duration,delay){
+  //Store the curve values
+    this.x1 = x1;
+    this.x2 = x2;
+    this.y1 = y1;
+    this.y2 = y2;
+    this.animationDuration = duration;
   //Setup
   var initialSubPaths = this.path.getSubpaths(true);
   var targetSubPaths = animateToPath.getSubpaths(true);
@@ -531,21 +538,19 @@ PathElement.prototype.animateTo = function(animateToPath){
   // TODO: Getting lazy...
   var initialPathArray = Path.combineSubpaths(initialSubPaths);
   var targetPathArray = Path.combineSubpaths(targetSubPaths);
-  this.path = new Path(Path.convertArrayToString(initialPathArray));
-  this.targetPath =  new Path(Path.convertArrayToString(targetPathArray));
   this.animationTime = 0;
   var that = this;
-  setTimeout(this.animationStep,20,initialPathArray, targetPathArray,that);
+  setTimeout(PathElement.animationStep,delay,initialPathArray, targetPathArray,that);
 }
 
-PathElement.prototype.animationStep = function(initialPathArray,targetPathArray,that){
+PathElement.animationStep = function(initialPathArray,targetPathArray,that){
   var tol = 1e-6;
 
   var currentPathArray = [];
   for(var i=0; i <initialPathArray.length; i++){
     currentPathArray.push(initialPathArray[i].slice());
     for(var j =1; j < currentPathArray[i].length; j++){
-      currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * that.animationTime + +initialPathArray[i][j];
+      currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * PathElement.getProgressAt(that.x1,that.y1,that.x2,that.y2,that.animationTime) + +initialPathArray[i][j];
       if(Math.abs(currentPathArray[i][j]) < tol){
           currentPathArray[i][j] = 0;
       }
@@ -554,7 +559,32 @@ PathElement.prototype.animationStep = function(initialPathArray,targetPathArray,
   that.path = Path.convertArrayToString(currentPathArray)
   that.element.setAttribute('d', that.path );
   if(that.animationTime < 1){
-    that.animationTime = that.animationTime + 1 /100;
-    setTimeout(that.animationStep,20, initialPathArray, targetPathArray,that);
+    that.animationTime = that.animationTime + 20 /that.animationDuration;
+    setTimeout(PathElement.animationStep,20, initialPathArray, targetPathArray,that);
   }
+}
+
+PathElement.getProgressAt = function(x1,y1,x2,y2,time){
+  var tolerance = 1e-5;
+
+  if(time ==0 || time == 1){
+    return time;
+  }
+
+  var t0 = 0;
+  var t1 = 1;
+  var t2 = 0;
+
+  var x = 0;
+
+  while(Math.abs(x-time)>tolerance){
+    t2 = (t0 + t1)/2;
+    x = 3*(1 - +t2)*(1 - +t2)*t2*x1 + 3*(1 - +t2)*t2*t2*x2 + t2*t2*t2;
+    if(x > time){
+      t1 = t2;
+    }else{
+      t0 = t2;
+    }
+  }
+  return 3*(1 - +t2)*(1 - +t2)*t2*y1 + 3*(1 - +t2)*t2*t2*y2 + t2*t2*t2;
 }

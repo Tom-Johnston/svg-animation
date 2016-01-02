@@ -1,0 +1,10 @@
+<svg id="bezier" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" style="overflow:visible">
+  <rect id="background" height="100" width="100" fill="white" rx="2" />
+  <path id="controlLine1" d='m 0 0 l 0 0' stoke-width="2" stroke="#888888"/>
+  <path id="controlLine2" d='m 100 100 l 0 0' stroke-width="2" stroke="#888888"/>
+  <path id="curve" d='m 0 100 c 0 0 0 0 100 -100' stroke-width="5" stroke="#002147" fill="none"/>
+  <circle id="startPoint" cx='0' cy='100' r='5' fill="white" stroke="#000"/>
+  <circle id="endPoint" cx='100' cy='0' r='5' fill="white" stroke="#000"/>
+  <circle id="control1" cx='0' cy='100' r='5' fill="blue" stroke="#000"/>
+  <circle id="control2" cx='100' cy='0' r='5' fill="blue" stroke="#000"/>
+</svg>
