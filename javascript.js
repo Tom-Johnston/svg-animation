@@ -188,7 +188,7 @@ function moveControlPoint1(e){
   }else if(e.clientX > graphBoundingBox.right){
     x = graphBoundingBox.right;
   }
-  var deltaX = (x- currentX)/graphBoundingBox.width;
+  var deltaX = (e.clientX- currentX)/graphBoundingBox.width;
   var deltaY = (e.clientY - currentY)/graphBoundingBox.height;
   currentX = x;
   currentY = e.clientY;
@@ -202,9 +202,15 @@ function moveControlPoint1(e){
 }
 
 function moveControlPoint2(e){
+  var x = e.clientX;
+  if(e.clientX < graphBoundingBox.left){
+    x = graphBoundingBox.left;
+  }else if(e.clientX > graphBoundingBox.right){
+    x = graphBoundingBox.right;
+  }
   var deltaX = (e.clientX- currentX)/graphBoundingBox.width;
   var deltaY = (e.clientY - currentY)/graphBoundingBox.height;
-  currentX = e.clientX;
+  currentX = x;
   currentY = e.clientY;
   if(cx2 + deltaX < 0){
     updateBezierGraph(cx1, cy1, 0 , cy2 - deltaY, widthG, heightG);
