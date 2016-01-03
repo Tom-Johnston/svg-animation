@@ -56,9 +56,13 @@ function animate(string, nodes,y,hideNodes){
     throw 'String is too long. I might implement multiple lines later.';
   }
   var leftMargin = (viewBox[2] - width)/2 + +viewBox[0];
+  var pathAnimation;
   for(var i =0; i < string.length; i++){
-    (new PathElement(nodes[i])).animateTo(paths[i].translatePath(xValues[i] + +leftMargin, y),cx1,cy1,cx2,cy2,2000,500);
-    //(new PathElement(nodes[i])).animateTo(paths[i]);
+    pathAnimation = new PathAnimation(nodes[i], paths[i].translatePath(xValues[i] + +leftMargin, y) );
+    pathAnimation.setBezierCurve(cx1,cy1,cx2,cy2);
+    pathAnimation.animationDuration = 2000;
+    pathAnimation.animationDelay = 500;
+    pathAnimation.start()
   }
   if(typeof hideNodes === 'undefined' || hideNodes === true){
     for(var i =2; i < svg.childNodes.length; i++){

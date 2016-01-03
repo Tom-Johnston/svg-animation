@@ -252,6 +252,7 @@ Path.splitRelativeSegment = function(segment, t){
 }
 
 Path.prototype.getBBox = function(){
+
   var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
 
 // Start the box after the first move.
@@ -288,6 +289,7 @@ Path.prototype.getMidPoint = function(){
   var BBox = this.getBBox();
   return [(BBox[0] + +BBox[1])/2 , (BBox[2] + +BBox[3])/2];
 }
+
 Path.prototype.getArrayOfSegments = function(){
   // NOTE: This doesn't check that the path is valid.
 
@@ -408,9 +410,11 @@ Path.prototype.getRelativeArrayOfSegmentsWithoutShortHand = function() {
 Path.prototype.getCanonicalForm = function (){
   var array = this.getRelativeArrayOfSegmentsWithoutShortHand();
 
-  for( var i=0; i<array.length; i++){
+  for( var i=array.length -1; i>-1; i--){
     if(array[i][0] != 'm' && array[i][0] != 'z' ){
       array[i] = Path.relativeSegmentToCurve(array[i]);
+    }else if(array[i][0] == 'z' && i < array.length - 2 && array[i+1][0] != 'm'){
+      array.splice(i+1, 0 , ['m', 0 , 0]);
     }
   }
   return array;
@@ -500,22 +504,36 @@ Path.countNumberOfCurvesInSubPath = function(arrayOfSegmentsInCanonicalForm){
 }
 
 
-function PathElement(element){
+function PathAnimation(element,targetPath){
   this.element = element;
-  this.path = new Path(element.getAttribute('d'));
-  this.initalPath = this.path;
+  this.initialPath = new Path(element.getAttribute('d'));
+  this.targetPath = targetPath;
+
+
+  //Defaults
+  this.x1 = 0;
+  this.y1 = 0;
+  this.x2 = 0;
+  this.y2 = 0;
+  this.animationDuration = 1000;
+  this.animationDelay = 0;
+  this.animationTime = 0;
+  this.forwards = true;
+
 }
 
-PathElement.prototype.animateTo = function(animateToPath,x1,y1,x2,y2,duration,delay){
-  //Store the curve values
-    this.x1 = x1;
-    this.x2 = x2;
-    this.y1 = y1;
-    this.y2 = y2;
-    this.animationDuration = duration;
+PathAnimation.prototype.setBezierCurve = function(x1,y1,x2,y2){
+  this.x1 = x1;
+  this.y1 = y1;
+  this.x2 = x2;
+  this.y2 = y2;
+}
+
+PathAnimation.prototype.start = function(){
+
   //Setup
-  var initialSubPaths = this.path.getSubpaths(true);
-  var targetSubPaths = animateToPath.getSubpaths(true);
+  var initialSubPaths = this.initialPath.getSubpaths(true);
+  var targetSubPaths = this.targetPath.getSubpaths(true);
   // Make sure we have enough initialSubPaths to morph
   while(targetSubPaths.length > initialSubPaths.length){
     initialSubPaths.push([["m",0,0],["z"]]);
@@ -535,40 +553,51 @@ PathElement.prototype.animateTo = function(animateToPath,x1,y1,x2,y2,duration,de
       targetSubPaths[i] = Path.increaseCurvesOfSubPath(targetSubPaths[i],initalLength);
     }
   }
-  // TODO: Getting lazy...
+
   var initialPathArray = Path.combineSubpaths(initialSubPaths);
   var targetPathArray = Path.combineSubpaths(targetSubPaths);
-  this.animationTime = 0;
   var that = this;
-  setTimeout(PathElement.animationStep,delay,initialPathArray, targetPathArray,that);
+  setTimeout(PathAnimation.animationStep,this.animationDelay,initialPathArray, targetPathArray,that);
 }
 
-PathElement.animationStep = function(initialPathArray,targetPathArray,that){
+PathAnimation.animationStep = function(initialPathArray,targetPathArray,that){
   var tol = 1e-6;
 
-  var currentPathArray = [];
-  for(var i=0; i <initialPathArray.length; i++){
-    currentPathArray.push(initialPathArray[i].slice());
-    for(var j =1; j < currentPathArray[i].length; j++){
-      currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * PathElement.getProgressAt(that.x1,that.y1,that.x2,that.y2,that.animationTime) + +initialPathArray[i][j];
-      if(Math.abs(currentPathArray[i][j]) < tol){
-          currentPathArray[i][j] = 0;
+  if(that.animationTime == 1){
+    that.pathString = that.targetPath.path;
+  }else if(that.animationTime == 0){
+    that.pathString = that.initialPath.path;
+  }else{
+    var currentPathArray = [];
+    for(var i=0; i <initialPathArray.length; i++){
+      currentPathArray.push(initialPathArray[i].slice());
+      for(var j =1; j < currentPathArray[i].length; j++){
+        currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * PathAnimation.getProgressAt(that.x1,that.y1,that.x2,that.y2,that.animationTime) + +initialPathArray[i][j];
+        if(Math.abs(currentPathArray[i][j]) < tol){
+            currentPathArray[i][j] = 0;
+        }
       }
     }
+    that.pathString = Path.convertArrayToString(currentPathArray)
   }
-  that.path = Path.convertArrayToString(currentPathArray)
-  that.element.setAttribute('d', that.path );
-  if(that.animationTime < 1){
+
+  that.element.setAttribute('d', that.pathString );
+  if(that.animationTime < 1 && that.forwards === true){
     that.animationTime = that.animationTime + 20 /that.animationDuration;
-    setTimeout(PathElement.animationStep,20, initialPathArray, targetPathArray,that);
+    setTimeout(PathAnimation.animationStep,20, initialPathArray, targetPathArray,that);
+  }else if(that.animationTime > 0 && that.forwards === false ){
+    that.animationTime = that.animationTime - 20/that.animationDuration;
+    setTimeout(PathAnimation.animationStep,20, initialPathArray, targetPathArray,that);
   }
 }
 
-PathElement.getProgressAt = function(x1,y1,x2,y2,time){
+PathAnimation.getProgressAt = function(x1,y1,x2,y2,time){
   var tolerance = 1e-5;
 
-  if(time ==0 || time == 1){
-    return time;
+  if(time <= 0){
+    return 0;
+  }else if(time >= 1){
+    return 1;
   }
 
   var t0 = 0;
