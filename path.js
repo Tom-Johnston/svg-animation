@@ -251,6 +251,123 @@ Path.splitRelativeSegment = function(segment, t){
   }
 }
 
+Path.getRelativeSegmentLengthAtPoints = function(segment, points, tol){
+  var type = segment[0];
+  var lengths = [];
+  if(type === 'm'){
+    for(var i =0; i < points.length; i++){
+      lengths.push(0);
+    }
+    return lengths;
+  }else if(['z','s','t','a'].indexOf(type) !== -1){
+    throw "length of " + type + " is not supported";
+  }else if(type === 'l'){
+    for(var i =0; i<points.length; i++){
+      lengths.push(Math.sqrt(segment[1]*segment[1]+ segment[2]*segment[2])*t);
+    }
+    return lengths
+  }else if(type == 'v' || type == 'h'){
+    for(var i =0; i<points.length; i++){
+      lengths.push(segment[1]*t);
+    }
+    return lengths;
+  }else{
+    //We use adaptive simpson. Gauss-Kronrod may be better but I don't think it is worth it.
+    tol = tol / points.length;
+    lengths.push(Path.adaptiveSimpson(segment,0,points[0],tol));
+    for(var i =1; i < points.length; i++){
+      lengths.push(lengths[i-1] + Path.adaptiveSimpson(segment,points[i-1],points[i],tol));
+    }
+    return lengths;
+  }
+}
+
+Path.lengthIntegrandC = function(segment, t){
+  var dx = 3*(1-t)*(1-t)*segment[1] + 6*(1-t)*t*(segment[3]-segment[1]) + 3*t*t*(segment[5]-segment[3]);
+  var dy = 3*(1-t)*(1-t)*segment[2] + 6*(1-t)*t*(segment[4]-segment[2]) + 3*t*t*(segment[6]-segment[4]);
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+Path.lengthIntegrandQ = function(segment, t){
+  var dx = 2*(1-t)*segment[1] + 2*t*(segment[3]-segment[1]);
+  var dy = 2*(1-t)*segment[2] + 2*t*(segment[4]-segment[2]);
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+Path.adaptiveSimpson = function(segment,a,b,tol,maxDepth){
+  if(typeof tol === 'undefined'){
+    tol = 1e-6;
+  }
+  if(typeof maxDepth === 'undefined'){
+    maxDepth = 10;
+  }
+  var f;
+  if(segment[0] == 'c'){
+    f = function(t){return Path.lengthIntegrandC(segment,t);}
+  }else{
+    f = function(t){return Path.lengthIntegrandQ(segment,t);}
+  }
+  //Calculate an initial value
+  var fa = f(a);
+  var fm = f(0.5*(a+b));
+  var fb = f(b);
+  var initialValue = (b-a)/6 * (fa + 4*fm + fb);
+
+  return Path.adaptiveSimpsonStep(f,a,b,fa,fm,fb,initialValue,tol,maxDepth,1);
+}
+
+Path.adaptiveSimpsonStep = function(f,a,b,fa,fm,fb,initialValue,tol,maxDepth,currentDepth){
+  var h = b-a;
+  var f1m = f(a + h*0.25);
+  var f2m = f( b - h*0.25);
+  var firstHalf = h/12 *(fa + 4*f1m + fm);
+  var secondHalf = h/12 * (fm + 4*f2m + fb);
+  var totalValue = firstHalf + secondHalf;
+  var errorEstimate = (totalValue - initialValue)/15;
+  if( currentDepth === maxDepth ) {
+    console.log('Terminating at maximum depth of ' + maxDepth);
+    return totalValue + errorEstimate;
+  } else if( Math.abs(errorEstimate) < tol ) {
+    return totalValue + errorEstimate;
+  } else {
+    var m = 0.5*(a+b);
+    var firstHalf = Path.adaptiveSimpsonStep( f, a, m, fa, f1m, fm, firstHalf, tol*0.5, maxDepth, currentDepth+1);
+    var secondHalf = Path.adaptiveSimpsonStep( f, m, b, fm, f2m, fb, secondHalf, tol*0.5, maxDepth, currentDepth+1);
+    return firstHalf + +secondHalf;
+  }
+}
+
+Path.prototype.createArrayOfLengths = function(){
+  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
+
+  var currentX  = 0;
+  var currentY = 0;
+  var startX = 0;
+  var startY =0;
+
+  var positionUpdate;
+  var lengths = [0]; //Note that we start with a move of zero length;
+
+  var lengthOfSegment;
+  for(var i =1; i < segments.length; i++){
+    if(segments[i][0] !== 'z' ){
+      lengthOfSegment = Path.getRelativeSegmentLengthAtPoints(segments[i],[1],1e-10)[0];
+      lengths.push(lengths[i-1]+lengthOfSegment);
+    }else{
+      var dx = startX - currentX;
+      var dy = startY - currentY;
+      lengthOfSegment = Math.sqrt(dx*dx + dy*dy);
+      lengths.push(lengths[i-1]+lengthOfSegment);
+    }
+    positionUpdate = Path.addRelativeSegmentToAbsolutePosition(startX,startY,currentX,currentY,segments[i]);
+    startX = positionUpdate[0];
+    startY = positionUpdate[1];
+    currentX = positionUpdate[2];
+    currentY = positionUpdate[3];
+  }
+  return lengths;
+}
+
 Path.prototype.getBBox = function(){
 
   var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
