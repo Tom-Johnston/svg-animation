@@ -1,0 +1,7 @@
+{
+     "undef": true,
+     "curly": true,
+     "strict": true,
+     "eqeqeq": true,
+     "browser": true
+}
