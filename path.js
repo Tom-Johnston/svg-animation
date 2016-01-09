@@ -7,6 +7,86 @@ function Path(path) {
   this.path = path;
 }
 
+// Miscellaneous Utility functions.
+
+Path.findEndOfNumber = function(string, startOfNumber) {
+  'use strict';
+  var currentlyDecimal = false;
+  if (string.charAt(startOfNumber) === '.') {
+    currentlyDecimal = true;
+  } else if (['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', 'e'].indexOf(string.charAt(startOfNumber)) === -1) {
+    throw ('Not a Number');
+  }
+  var char;
+  for (var j = startOfNumber + 1; j < string.length; j++) {
+    char = string.charAt(j).toLowerCase();
+    if (char === 'e') {
+      currentlyDecimal = false;
+      j++; //Skip the first number
+    }if (char === '.' && currentlyDecimal === false) {
+      currentlyDecimal = true;
+    } else if (allBreaks.indexOf(char) !== -1) {
+      return j - 1;
+    }
+  }
+  return string.length;
+};
+
+Path.convertArrayToString = function(arrayOfSegments) {
+  'use strict';
+  var string  = '';
+
+  for (var i = 0; i < arrayOfSegments.length; i++) {
+    for (var j = 0; j < arrayOfSegments[i].length; j++) {
+      string += arrayOfSegments[i][j] + ' ';
+    }
+  }
+  return string;
+};
+
+Path.combineSubpaths = function(subpaths) {
+  'use strict';
+  var combined = [];
+  for (var i = 0; i < subpaths.length; i++) {
+    combined = combined.concat(subpaths[i]);
+  }
+  return combined;
+};
+
+//Functions on segments. These are used in functions on the whole path.
+
+Path.addRelativeSegmentToAbsolutePosition = function(pathSectionStartX, pathSectionStartY, x, y, segment) {
+  'use strict';
+  var type;
+  type = segment[0];
+  if (type === 'm') {
+    x = +x +  (+segment[1]);
+    y = +y +  (+segment[2]);
+    pathSectionStartX = x;
+    pathSectionStartY = y;
+  } else if (type === 'l' || type === 't') {
+    x = +x +  (+segment[1]);
+    y = +y +  (+segment[2]);
+  } else if (type === 'c') {
+    x = +x +  (+segment[5]);
+    y = +y +  (+segment[6]);
+  } else if (type === 'z') {
+    x = pathSectionStartX;
+    y = pathSectionStartY;
+  } else if (type === 'h') {
+    x = +x +  (+segment[1]);
+  } else if (type === 'v') {
+    y = +y +  (+segment[1]);
+  } else if (type === 's' || type === 'q') {
+    x = +x +  (+segment[3]);
+    y = +y +  (+segment[4]);
+  } else if (type === 'a') {
+    x = +x +  (+segment[6]);
+    y = +y +  (+segment[7]);
+  }
+  return [pathSectionStartX, pathSectionStartY, x, y];
+};
+
 Path.relativeSegmentToCurve = function(segment) {
   'use strict';
   var type = segment[0];
@@ -125,80 +205,6 @@ Path.getBBoxOfRelativeSegment = function(segment) {
     throw 'Allow';
   }
   return [minX, maxX, minY, maxY];
-};
-
-Path.addRelativeSegmentToAbsolutePosition = function(pathSectionStartX, pathSectionStartY, x, y, segment) {
-  'use strict';
-  var type;
-  type = segment[0];
-  if (type === 'm') {
-    x = +x +  (+segment[1]);
-    y = +y +  (+segment[2]);
-    pathSectionStartX = x;
-    pathSectionStartY = y;
-  } else if (type === 'l' || type === 't') {
-    x = +x +  (+segment[1]);
-    y = +y +  (+segment[2]);
-  } else if (type === 'c') {
-    x = +x +  (+segment[5]);
-    y = +y +  (+segment[6]);
-  } else if (type === 'z') {
-    x = pathSectionStartX;
-    y = pathSectionStartY;
-  } else if (type === 'h') {
-    x = +x +  (+segment[1]);
-  } else if (type === 'v') {
-    y = +y +  (+segment[1]);
-  } else if (type === 's' || type === 'q') {
-    x = +x +  (+segment[3]);
-    y = +y +  (+segment[4]);
-  } else if (type === 'a') {
-    x = +x +  (+segment[6]);
-    y = +y +  (+segment[7]);
-  }
-  return [pathSectionStartX, pathSectionStartY, x, y];
-};
-
-Path.getPointOnRelativeCurveAt = function(segment, t) {
-  'use strict';
-  var x = 3 * (1 - +t) * (1 - +t) * t * segment[1] + 3 * (1 - +t) * t * t * segment[3] + t * t * t * segment[5];
-  var y = 3 * (1 - +t) * (1 - +t) * t * segment[2] + 3 * (1 - +t) * t * t * segment[4] +  t * t * t * segment[6];
-  return [x, y];
-};
-
-Path.findEndOfNumber = function(string, startOfNumber) {
-  'use strict';
-  var currentlyDecimal = false;
-  if (string.charAt(startOfNumber) === '.') {
-    currentlyDecimal = true;
-  } else if (['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', 'e'].indexOf(string.charAt(startOfNumber)) === -1) {
-    throw ('Not a Number');
-  }
-  var char;
-  for (var j = startOfNumber + 1; j < string.length; j++) {
-    char = string.charAt(j).toLowerCase();
-    if (char === 'e') {
-      currentlyDecimal = false;
-      j++; //Skip the first number
-    }if (char === '.' && currentlyDecimal === false) {
-      currentlyDecimal = true;
-    } else if (allBreaks.indexOf(char) !== -1) {
-      return j - 1;
-    }
-  }
-  return string.length;
-};
-
-Path.convertArrayToString = function(arrayOfSegments) {
-  'use strict';
-  var string  = '';
-
-  for (var i = 0; i < arrayOfSegments.length; i++) {
-    for (var j = 0; j < arrayOfSegments[i].length; j++) {
-      string += arrayOfSegments[i][j] + ' ';
-    }
-  }
-  return string;
 };
 
 Path.splitRelativeSegment = function(segment, t) {
@@ -354,81 +360,15 @@ Path.adaptiveSimpsonStep = function(f, a, b, fa, fm, fb, initialValue, tol, maxD
   }
 };
 
-Path.prototype.createArrayOfLengths = function() {
+//These functions only relate to curves.
+Path.getPointOnRelativeCurveAt = function(segment, t) {
   'use strict';
-  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
-
-  var currentX  = 0;
-  var currentY = 0;
-  var startX = 0;
-  var startY = 0;
-
-  var positionUpdate;
-  var lengths = [0]; //Note that we start with a move of zero length;
-
-  var lengthOfSegment;
-  for (var i = 1; i < segments.length; i++) {
-    if (segments[i][0] !== 'z') {
-      lengthOfSegment = Path.getRelativeSegmentLengthAtPoints(segments[i], [1], 1e-10)[0];
-      lengths.push(lengths[i - 1] + lengthOfSegment);
-    }else {
-      var dx = startX - currentX;
-      var dy = startY - currentY;
-      lengthOfSegment = Math.sqrt(dx * dx + dy * dy);
-      lengths.push(lengths[i - 1] + lengthOfSegment);
-    }
-
-    positionUpdate = Path.addRelativeSegmentToAbsolutePosition(startX, startY, currentX, currentY, segments[i]);
-    startX = positionUpdate[0];
-    startY = positionUpdate[1];
-    currentX = positionUpdate[2];
-    currentY = positionUpdate[3];
-  }
-
-  return lengths;
+  var x = 3 * (1 - +t) * (1 - +t) * t * segment[1] + 3 * (1 - +t) * t * t * segment[3] + t * t * t * segment[5];
+  var y = 3 * (1 - +t) * (1 - +t) * t * segment[2] + 3 * (1 - +t) * t * t * segment[4] +  t * t * t * segment[6];
+  return [x, y];
 };
 
-Path.prototype.getBBox = function() {
-  'use strict';
-  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
-
-  // Start the box after the first move.
-  var minX = segments[0][1];
-  var maxX = segments[0][1];
-  var minY = segments[0][2];
-  var maxY = segments[0][2];
-
-  var currentX = minX;
-  var currentY = minY;
-  var startX = minX;
-  var startY = minY;
-
-  var segmentBBox;
-  var positionUpdate;
-  for (var i = 1; i < segments.length; i++) {
-    if (segments[i][0] !== 'z') {
-      segmentBBox = Path.getBBoxOfRelativeSegment(segments[i]);
-      minX = Math.min(minX, segmentBBox[0] + (+currentX));
-      maxX = Math.max(maxX, segmentBBox[1] + (+currentX));
-      minY = Math.min(minY, segmentBBox[2] + (+currentY));
-      maxY = Math.max(maxY, segmentBBox[3] + (+currentY));
-    }
-
-    positionUpdate = Path.addRelativeSegmentToAbsolutePosition(startX, startY, currentX, currentY, segments[i]);
-    startX = positionUpdate[0];
-    startY = positionUpdate[1];
-    currentX = positionUpdate[2];
-    currentY = positionUpdate[3];
-  }
-
-  return [minX, maxX, minY, maxY];
-};
-
-Path.prototype.getMidPoint = function() {
-  'use strict';
-  var BBox = this.getBBox();
-  return [(BBox[0] + (+BBox[1])) / 2, (BBox[2] + (+BBox[3])) / 2];
-};
+// Functions on the whole path. These are often just applying the functions on segments over all the segments.
 
 Path.prototype.getArrayOfSegments = function() {
   // NOTE: This doesn't check that the path is valid.
@@ -562,6 +502,82 @@ Path.prototype.getCanonicalForm = function() {
   return array;
 };
 
+Path.prototype.createArrayOfLengths = function() {
+  'use strict';
+  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
+
+  var currentX  = 0;
+  var currentY = 0;
+  var startX = 0;
+  var startY = 0;
+
+  var positionUpdate;
+  var lengths = [0]; //Note that we start with a move of zero length;
+
+  var lengthOfSegment;
+  for (var i = 1; i < segments.length; i++) {
+    if (segments[i][0] !== 'z') {
+      lengthOfSegment = Path.getRelativeSegmentLengthAtPoints(segments[i], [1], 1e-10)[0];
+      lengths.push(lengths[i - 1] + lengthOfSegment);
+    }else {
+      var dx = startX - currentX;
+      var dy = startY - currentY;
+      lengthOfSegment = Math.sqrt(dx * dx + dy * dy);
+      lengths.push(lengths[i - 1] + lengthOfSegment);
+    }
+
+    positionUpdate = Path.addRelativeSegmentToAbsolutePosition(startX, startY, currentX, currentY, segments[i]);
+    startX = positionUpdate[0];
+    startY = positionUpdate[1];
+    currentX = positionUpdate[2];
+    currentY = positionUpdate[3];
+  }
+
+  return lengths;
+};
+
+Path.prototype.getBBox = function() {
+  'use strict';
+  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
+
+  // Start the box after the first move.
+  var minX = segments[0][1];
+  var maxX = segments[0][1];
+  var minY = segments[0][2];
+  var maxY = segments[0][2];
+
+  var currentX = minX;
+  var currentY = minY;
+  var startX = minX;
+  var startY = minY;
+
+  var segmentBBox;
+  var positionUpdate;
+  for (var i = 1; i < segments.length; i++) {
+    if (segments[i][0] !== 'z') {
+      segmentBBox = Path.getBBoxOfRelativeSegment(segments[i]);
+      minX = Math.min(minX, segmentBBox[0] + (+currentX));
+      maxX = Math.max(maxX, segmentBBox[1] + (+currentX));
+      minY = Math.min(minY, segmentBBox[2] + (+currentY));
+      maxY = Math.max(maxY, segmentBBox[3] + (+currentY));
+    }
+
+    positionUpdate = Path.addRelativeSegmentToAbsolutePosition(startX, startY, currentX, currentY, segments[i]);
+    startX = positionUpdate[0];
+    startY = positionUpdate[1];
+    currentX = positionUpdate[2];
+    currentY = positionUpdate[3];
+  }
+
+  return [minX, maxX, minY, maxY];
+};
+
+Path.prototype.getMidPoint = function() {
+  'use strict';
+  var BBox = this.getBBox();
+  return [(BBox[0] + (+BBox[1])) / 2, (BBox[2] + (+BBox[3])) / 2];
+};
+
 Path.prototype.getSubpaths = function(inCanonicalForm) {
   'use strict';
   var subpaths = [];
@@ -593,15 +609,7 @@ Path.prototype.translatePath = function(x, y) {
   return this;
 };
 
-Path.combineSubpaths = function(subpaths) {
-  'use strict';
-  var combined = [];
-  for (var i = 0; i < subpaths.length; i++) {
-    combined = combined.concat(subpaths[i]);
-  }
-  return combined;
-};
-
+//I'm going to replace these. Hopefully...
 Path.increaseCurvesOfSubPath = function(pathSegmentsInCanonicalForm, numberOfCurvesToHave) {
   'use strict';
   // Use a shorter name in the actual code. The longer name is just descriptive.
@@ -648,6 +656,13 @@ Path.countNumberOfCurvesInSubPath = function(arrayOfSegmentsInCanonicalForm) {
     length--;
   }
   return length;
+};
+
+Path.matchCurveNumbers = function(arrayOfSegmentsInCanonicalForm1, arrayOfSegmentsInCanonicalForm2) {
+  'use strict';
+  var segments;
+  var segments2;
+
 };
 
 function PathAnimation(element, targetPath) {
