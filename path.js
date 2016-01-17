@@ -64,18 +64,18 @@ Path.matchCurveNumbersInSubpath = function(path1, path2) {
       // Split segment j
       var length;
       if (j > 0) {
-        length = (lengths1[j] - lengths1[j - 1]) * totalLength2;
+        length = (lengthsToSpliceOn[i] - lengths2[j - 1]) * totalLength2;
       }else {
-        length = lengths1[j] * totalLength2;
+        length = lengthsToSpliceOn[i] * totalLength2;
       }
 
       var t = Path.getTValueAtLength(segments2[j], length, 1e-6);
       var splitSegments = Path.splitRelativeSegment(segments2[j], t);
       segments2.splice(j, 1, splitSegments[0], splitSegments[1]);
       if (j > 0) {
-        lengths2.splice(j, 1, lengths[j - 1] + length, lengths[j]);
+        lengths2.splice(j, 1, lengths2[j - 1] + length / totalLength2 , lengths2[j]);
       }else {
-        lengths2.splice(j, 1, length, lengths[j]);
+        lengths2.splice(j, 1, length / totalLength2, lengths2[j]);
       }
 
     }
