@@ -48,7 +48,7 @@ Path.matchCurveNumbersInSubpath = function(path1, path2) {
     lengths2.splice(lengths2.length - 1, 1);
   }
 
-  if (lengths1.length > lengths2.length) {
+  if (lengths1.length >= lengths2.length) {
     var lengthsToSpliceOn = lengths1.slice();
     for (i = 0; i < lengths2.length; i++) {
       //Remove the closest lengths.
