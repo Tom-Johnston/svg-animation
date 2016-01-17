@@ -5,9 +5,124 @@ var allBreaks = ['m', 'l', 'c', 'z', 'h', 'v', 's', 'q', 't', 'a', ',', ' ', '-'
 function Path(path) {
   'use strict';
   this.path = path;
+  this.canonicalForm = this.getCanonicalForm();
 }
 
 // Miscellaneous Utility functions.
+
+Path.matchCurveNumbersInSubpath = function(path1, path2) {
+  'use strict';
+
+  //Strip the move and close commands from the paths.
+  var segments1 = path1.canonicalForm.slice();
+  var lengths1 = path1.createArrayOfLengths();
+  for (var i = 0; i < lengths1.length; i++) {
+    lengths1[i] = lengths1[i] / lengths1[lengths1.length - 1];
+  }
+  var moveSegment1 = [];
+  var closeSegment1 = [];
+
+  var segments2 = path2.canonicalForm.slice();
+  var lengths2 = path2.createArrayOfLengths();
+  var totalLength2 = lengths2[lengths2.length - 1];
+  for (i = 0; i < lengths2.length; i++) {
+    lengths2[i] = lengths2[i] / lengths2[lengths2.length - 1];
+  }
+  var moveSegment2 = [];
+  var closeSegment2 = [];
+
+  if (segments1[0][0] === 'm') {
+    moveSegment1 = segments1.splice(0, 1);
+    lengths1.splice(0,1);
+  }
+  if (segments1[segments1.length - 1][0] === 'z') {
+    closeSegment1 = segments1.splice(segments1.length - 1, 1);
+    lengths1.splice(lengths1.length - 1, 1);
+  }
+  if (segments2[0][0] === 'm') {
+    moveSegment2 = segments2.splice(0, 1);
+    lengths2.splice(0,1);
+  }
+  if (segments2[segments2.length - 1][0] === 'z') {
+    closeSegment2 = segments2.splice(segments2.length - 1, 1);
+    lengths2.splice(lengths2.length - 1, 1);
+  }
+
+  if (lengths1.length > lengths2.length) {
+    var lengthsToSpliceOn = lengths1.slice();
+    for (i = 0; i < lengths2.length; i++) {
+      //Remove the closest lengths.
+      lengthsToSpliceOn.splice(Path.findIndexOfClosestMatch(lengthsToSpliceOn, lengths2[i]), 1);
+    }
+    //Split on the remaining lengths;
+    for (i = 0; i < lengthsToSpliceOn.length; i++) {
+      for (var j = 0; j < lengths2.length - 1; j++) {
+        if (lengths2[j] >= lengthsToSpliceOn[i]) {
+          break;
+        }
+      }
+      // Split segment j
+      var length;
+      if (j > 0) {
+        length = (lengths1[j] - lengths1[j - 1]) * totalLength2;
+      }else {
+        length = lengths1[j] * totalLength2;
+      }
+
+      var t = Path.getTValueAtLength(segments2[j], length, 1e-6);
+      var splitSegments = Path.splitRelativeSegment(segments2[j], t);
+      segments2.splice(j, 1, splitSegments[0], splitSegments[1]);
+      if (j > 0) {
+        lengths2.splice(j, 1, lengths[j - 1] + length, lengths[j]);
+      }else {
+        lengths2.splice(j, 1, length, lengths[j]);
+      }
+
+    }
+    segments1 = moveSegment1.concat(segments1.concat(closeSegment1));
+    segments2 = moveSegment2.concat(segments2.concat(closeSegment2));
+    return [new Path(Path.convertArrayToString(segments1)), new Path(Path.convertArrayToString(segments2))];
+  }else {
+    //Yes, I am that lazy.
+    var returned = Path.matchCurveNumbersInSubpath(path2, path1);
+    return [returned[1], returned[0]];
+  }
+
+};
+
+Path.findIndexOfClosestMatch = function(array, valueToMatch) {
+  'use strict';
+  //We could optimise this if we enforce that the arrays are ordered but we won't.
+  var currentClosest = 0;
+  var distance = Math.abs(array[0] - valueToMatch);
+  for (var i = 1; i < array.length; i++) {
+    if (Math.abs(array[i] - valueToMatch)) {
+      distance = Math.abs(array[0] - valueToMatch);
+      currentClosest = i;
+    }
+  }
+  return currentClosest;
+};
+
+Path.matchForm = function(path1, path2) {
+  'use strict';
+  var subpaths1 = path1.getSubpaths();
+  var subpaths2 = path2.getSubpaths();
+
+  while (subpaths1.length < subpaths2.length) {
+    subpaths1.push(new Path('m 0 0 c 0 0 0 0 0 0 z'));
+  }
+  while (subpaths2.length < subpaths1.length) {
+    subpaths2.push(new Path('m 0 0 c 0 0 0 0 0 0 z'));
+  }
+
+  for (var i = 0; i < subpaths2.length; i++) {
+    var returnedSubpaths = Path.matchCurveNumbersInSubpath(subpaths1[i], subpaths2[i]);
+    subpaths1[i] = returnedSubpaths[0];
+    subpaths2[i] = returnedSubpaths[1];
+  }
+  return [Path.combinePaths(subpaths1), Path.combinePaths(subpaths2)];
+};
 
 Path.findEndOfNumber = function(string, startOfNumber) {
   'use strict';
@@ -44,13 +159,13 @@ Path.convertArrayToString = function(arrayOfSegments) {
   return string;
 };
 
-Path.combineSubpaths = function(subpaths) {
+Path.combinePaths = function(pathsToCombine) {
   'use strict';
-  var combined = [];
-  for (var i = 0; i < subpaths.length; i++) {
-    combined = combined.concat(subpaths[i]);
+  var combinedPathString = '';
+  for (var i = 0; i < pathsToCombine.length; i++) {
+    combinedPathString = combinedPathString + pathsToCombine[i].path;
   }
-  return combined;
+  return new Path(combinedPathString);
 };
 
 //Functions on segments. These are used in functions on the whole path.
@@ -210,7 +325,7 @@ Path.getBBoxOfRelativeSegment = function(segment) {
 Path.splitRelativeSegment = function(segment, t) {
   'use strict';
   if (t < 0 || t > 1) {
-    throw 'Invalid t';
+    throw 'Invalid t: ' + t;
   }
 
   var type = segment[0];
@@ -360,6 +475,42 @@ Path.adaptiveSimpsonStep = function(f, a, b, fa, fm, fb, initialValue, tol, maxD
   }
 };
 
+Path.getTValueAtLength = function(relativeSegment, length, tol) {
+  'use strict';
+  var lengthOfSegment = 0;
+  if (['z','s','t','a'].indexOf(relativeSegment[0]) !== -1) {
+    throw relativeSegment[0] + ' is not supported';
+  }else if (['m','l','v','h'].indexOf(relativeSegment[0]) !== -1) {
+    lengthOfSegment = Path.getRelativeSegmentLengthAtPoints(relativeSegment, [1], 1e-8);
+    if (lengthOfSegment === 0) {
+      return 0;
+    }
+    return length / lengthOfSegment;
+  }else {
+    var pointsToCheck;
+    var arrayOfLengths;
+    var a = 0;
+    var b = 1;
+    var width = b - a;
+    while (width > tol) {
+      pointsToCheck = [];
+      for (var i = 0; i < 11; i++) {
+        pointsToCheck.push(a + width * i / 10);
+      }
+      arrayOfLengths = Path.getRelativeSegmentLengthAtPoints(relativeSegment, pointsToCheck, tol);
+      for (i = 0; i < arrayOfLengths.length - 1; i++) {
+        if (arrayOfLengths[i] >= length) {
+          break;
+        }
+      }
+      b = a + width * i / 10;
+      a = a + width * Math.max(i - 1, 0) / 10;
+      width = b - a;
+    }
+    return (a + b) / 2;
+  }
+};
+
 //These functions only relate to curves.
 Path.getPointOnRelativeCurveAt = function(segment, t) {
   'use strict';
@@ -504,7 +655,7 @@ Path.prototype.getCanonicalForm = function() {
 
 Path.prototype.createArrayOfLengths = function() {
   'use strict';
-  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
+  var segments = this.canonicalForm;
 
   var currentX  = 0;
   var currentY = 0;
@@ -538,7 +689,7 @@ Path.prototype.createArrayOfLengths = function() {
 
 Path.prototype.getBBox = function() {
   'use strict';
-  var segments = this.getRelativeArrayOfSegmentsWithoutShortHand();
+  var segments = this.canonicalForm;
 
   // Start the box after the first move.
   var minX = segments[0][1];
@@ -578,22 +729,20 @@ Path.prototype.getMidPoint = function() {
   return [(BBox[0] + (+BBox[1])) / 2, (BBox[2] + (+BBox[3])) / 2];
 };
 
-Path.prototype.getSubpaths = function(inCanonicalForm) {
+Path.prototype.getSubpaths = function() {
   'use strict';
   var subpaths = [];
-  var arrayOfSegments;
-  if (inCanonicalForm === true) {
-    arrayOfSegments = this.getCanonicalForm();
-  } else {
-    arrayOfSegments = this.getArrayOfSegments();
-  }
+  var arrayOfSegments = this.canonicalForm;
   var lastIndex = -1;
+  var path;
   for (var i = 0; i < arrayOfSegments.length; i++) {
     if (arrayOfSegments[i][0] === 'z') {
-      subpaths.push(arrayOfSegments.slice(lastIndex + 1, i + 1));
+      path = new Path(Path.convertArrayToString(arrayOfSegments.slice(lastIndex + 1, i + 1)));
+      subpaths.push(path);
       lastIndex = i;
     } else if (arrayOfSegments[i][0] === 'm' && i !== lastIndex + 1) {
-      subpaths.push(arrayOfSegments.slice(lastIndex + 1, i + 1));
+      path = new Path(Path.convertArrayToString(arrayOfSegments.slice(lastIndex + 1, i + 1)));
+      subpaths.push(path);
       lastIndex = i;
     }
   }
@@ -602,67 +751,12 @@ Path.prototype.getSubpaths = function(inCanonicalForm) {
 
 Path.prototype.translatePath = function(x, y) {
   'use strict';
-  var segments = this.getRelativeArrayOfSegments();
+  var segments = this.canonicalForm;
   segments[0][1] = +segments[0][1] + (+x);
   segments[0][2] = +segments[0][2] + (+y);
   this.path = Path.convertArrayToString(segments);
+  this.canonicalForm = this.getCanonicalForm();
   return this;
-};
-
-//I'm going to replace these. Hopefully...
-Path.increaseCurvesOfSubPath = function(pathSegmentsInCanonicalForm, numberOfCurvesToHave) {
-  'use strict';
-  // Use a shorter name in the actual code. The longer name is just descriptive.
-  var segments = pathSegmentsInCanonicalForm;
-
-  //We will strip the segments we can't split (apart from a)
-  var moveSegment = [];
-  var closeSegment = [];
-
-  if (segments[0][0] === 'm') {
-    moveSegment = segments.splice(0, 1);
-  }
-  if (segments[segments.length - 1][0] === 'z') {
-    closeSegment = segments.splice(segments.length - 1, 1);
-  }
-
-  //
-  if (segments.length === 0) {
-    //We will add empty curves.
-    for (var i = 0; i < numberOfCurvesToHave; i++) {
-      segments.push(['c', 0, 0, 0, 0, 0, 0]);
-    }
-  } else {
-    // TODO: I should probably split based on lengths or something but for now I will just split random segments in half.
-    var splitPoint;
-    var splitSegments;
-    while (segments.length < numberOfCurvesToHave) {
-      splitPoint = Math.floor(Math.random() * segments.length);
-      splitSegments = Path.splitRelativeSegment(segments[splitPoint], 0.5);
-      segments.splice(splitPoint, 1, splitSegments[0], splitSegments[1]);
-    }
-  }
-  return moveSegment.concat(segments.concat(closeSegment));
-};
-
-Path.countNumberOfCurvesInSubPath = function(arrayOfSegmentsInCanonicalForm) {
-  'use strict';
-  var segments = arrayOfSegmentsInCanonicalForm;
-  var length = segments.length;
-  if (segments[0][0] === 'm') {
-    length--;
-  }
-  if (segments[segments.length - 1][0] === 'z') {
-    length--;
-  }
-  return length;
-};
-
-Path.matchCurveNumbers = function(arrayOfSegmentsInCanonicalForm1, arrayOfSegmentsInCanonicalForm2) {
-  'use strict';
-  var segments;
-  var segments2;
-
 };
 
 function PathAnimation(element, targetPath) {
@@ -694,32 +788,10 @@ PathAnimation.prototype.setBezierCurve = function(x1, y1, x2, y2) {
 PathAnimation.prototype.start = function() {
   'use strict';
   //Setup
-  var initialSubPaths = this.initialPath.getSubpaths(true);
-  var targetSubPaths = this.targetPath.getSubpaths(true);
-  // Make sure we have enough initialSubPaths to morph
-  while (targetSubPaths.length > initialSubPaths.length) {
-    initialSubPaths.push([['m', 0, 0], ['z']]);
-  }
-  while (targetSubPaths.length < initialSubPaths.length) {
-    targetSubPaths.push([['m', 0, 0], ['z']]);
-  }
-  // Make all the subpaths the same length.
-  var targetLength;
-  var initalLength;
-  for (var i = 0; i < targetSubPaths.length; i++) {
-    targetLength = Path.countNumberOfCurvesInSubPath(targetSubPaths[i]);
-    initalLength = Path.countNumberOfCurvesInSubPath(initialSubPaths[i]);
-    if (targetLength > initalLength) {
-      initialSubPaths[i] = Path.increaseCurvesOfSubPath(initialSubPaths[i], targetLength);
-    } else if (targetLength < initalLength) {
-      targetSubPaths[i] = Path.increaseCurvesOfSubPath(targetSubPaths[i], initalLength);
-    }
-  }
-
-  var initialPathArray = Path.combineSubpaths(initialSubPaths);
-  var targetPathArray = Path.combineSubpaths(targetSubPaths);
   var that = this;
-  setTimeout(PathAnimation.animationStep, this.animationDelay, initialPathArray, targetPathArray, that);
+  var matchedPaths = Path.matchForm(this.initialPath, this.targetPath);
+
+  setTimeout(PathAnimation.animationStep, this.animationDelay, matchedPaths[0].canonicalForm, matchedPaths[1].canonicalForm, that);
 };
 
 PathAnimation.animationStep = function(initialPathArray, targetPathArray, that) {
