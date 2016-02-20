@@ -774,6 +774,9 @@ function PathAnimation(element, targetPath) {
   this.animationDelay = 0;
   this.animationTime = 0;
   this.forwards = true;
+  this.animationIterationCount = -1;
+  this.currentItertationCount = 0;
+  this.alternate = true;
 
 }
 
@@ -823,6 +826,22 @@ PathAnimation.animationStep = function(initialPathArray, targetPathArray, that) 
   } else if (that.animationTime > 0 && that.forwards === false) {
     that.animationTime = that.animationTime - 20 / that.animationDuration;
     setTimeout(PathAnimation.animationStep, 20, initialPathArray, targetPathArray, that);
+  }else {
+    that.onAnimationEnd();
+  }
+};
+
+PathAnimation.prototype.onAnimationEnd = function() {
+  'use strict';
+  this.currentItertationCount++;
+  if (this.animationIterationCount === -1 || this.animationIterationCount > this.currentItertationCount) {
+    if (this.alternate === true) {
+      this.forwards = !this.forwards;
+      this.start();
+    }else {
+      this.animationTime = 0;
+      this.start();
+    }
   }
 };
 

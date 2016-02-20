@@ -1,4 +1,9 @@
 /* globals Path, helvetica,PathAnimation, console */
+
+var animationDuration = 2000;
+
+var pathAnimations = [];
+
 function animate(string, nodes, y, hideNodes) {
   'use strict';
   var i;
@@ -63,15 +68,21 @@ function animate(string, nodes, y, hideNodes) {
   for (i = 0; i < string.length; i++) {
     pathAnimation = new PathAnimation(nodes[i], paths[i].translatePath(xValues[i] + (+leftMargin), y));
     pathAnimation.setBezierCurve(cx1,cy1,cx2,cy2);
-    pathAnimation.animationDuration = 2000;
+    pathAnimation.animationDuration = animationDuration;
     pathAnimation.animationDelay = 500;
+    if (animationLoop === true) {
+      pathAnimation.animationIterationCount = -1;
+    }else {
+      pathAnimation.animationIterationCount = 1;
+    }
     pathAnimation.start();
+    pathAnimations.push(pathAnimation);
   }
   if (typeof hideNodes === 'undefined' || hideNodes === true) {
     for (i = 2; i < svg.childNodes.length; i++) {
       if (nodes.indexOf(svg.childNodes[i]) === -1) {
         svg.childNodes[i].style.transition = 'opacity 1s';
-        svg.childNodes[i].style.opacity = '0';
+        svg.childNodes[i].style.opacity = '0.2';
       }
     }
   }
@@ -85,34 +96,15 @@ function onLoad() {
   updateBezierGraph(0.25,0.1,0.25,1,widthG,heightG);
   updateRectangleBoundingBox();
   addListeners();
-
-  if (getParameterByName('HappyNewYear') === 'true') {
-    var svg = document.getElementById('svg');
-    console.log('Happy New Year!');
-    var happyNodes = [svg.childNodes[9],svg.childNodes[12],svg.childNodes[10],svg.childNodes[11],svg.childNodes[8]];
-    animate('Happy',happyNodes,20,false);
-    var newNodes = [svg.childNodes[6],svg.childNodes[5],svg.childNodes[4]];
-    animate('New',newNodes,150,false);
-    var yearNodes = [svg.childNodes[14],svg.childNodes[15],svg.childNodes[16],svg.childNodes[17]];
-    animate('Year',yearNodes,280,false);
-    var nodes = happyNodes.concat(newNodes.concat(yearNodes));
-    for (var i = 2; i < svg.childNodes.length; i++) {
-      if (nodes.indexOf(svg.childNodes[i]) === -1) {
-        svg.childNodes[i].style.transition = 'opacity 1s';
-        svg.childNodes[i].style.opacity = '0';
-      }
-    }
-  }else {
-    var string = getParameterByName('string');
-    if (string.length > 0) {
-      animate(string);
-    }
+  var string = getParameterByName('string');
+  if (string.length > 0) {
+    animate(string);
   }
 }
 
 function changeDimensionsOfBezier(width, height) {
   'use strict';
-  document.getElementById('bezier').setAttribute('viewBox', '0' + (-1 * height / 2) + ' ' + (+width + 20) + ' ' + 2 * height);
+  document.getElementById('bezier').setAttribute('viewBox', '0 0 ' + width + ' ' + height);
 
   document.getElementById('background').setAttribute('height',height);
   document.getElementById('background').setAttribute('width',width);
@@ -166,6 +158,9 @@ function addListeners() {
   'use strict';
   document.getElementById('control1').addEventListener('mousedown',onMouseDown);
   document.getElementById('control2').addEventListener('mousedown',onMouseDown);
+  document.getElementById('minus-wrapper').addEventListener('click', onClickMinus);
+  document.getElementById('plus-wrapper').addEventListener('click', onClickPlus);
+  document.getElementById('loop').addEventListener('change', onLoopChanged);
   window.addEventListener('resize',updateRectangleBoundingBox);
 }
 
@@ -240,4 +235,52 @@ function getParameterByName(name) {
   var regex = new RegExp('[\\?&]' + name + '=([^&#]*)'),
   results = regex.exec(location.search);
   return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+function reset() {
+  'use strict';
+  for (var i = 0; i < pathAnimations.length; i++) {
+    pathAnimations[i].forwards = false;
+    pathAnimations[i].animationDelay = 0;
+    pathAnimations[i].start();
+  }
+  pathAnimations = [];
+  setTimeout(makeEverythingVisible,2000);
+}
+
+function makeEverythingVisible() {
+  'use strict';
+  var svg = document.getElementById('svg');
+  for (var i = 0; i < svg.childNodes.length; i++) {
+    svg.childNodes[i].style.opacity = '1';
+  }
+}
+
+var minusPlaying = false;
+var plusPlaying = false;
+
+function onClickMinus() {
+  if (minusPlaying === false) {
+    minusPlaying = true;
+    document.getElementById('minus').classList.add('one-eighty');
+    setTimeout(function() {document.getElementById('minus').classList.remove('one-eighty'); minusPlaying = false;}, 500 );
+  }
+  animationDuration = animationDuration - 100;
+  document.getElementById('duration').innerHTML = (animationDuration / 1000).toFixed(1) + 's';
+}
+
+function onClickPlus() {
+  if (plusPlaying === false) {
+    plusPlaying = true;
+    document.getElementById('plus').classList.add('one-eighty');
+    setTimeout(function() {document.getElementById('plus').classList.remove('one-eighty'); plusPlaying = false;}, 500 );
+  }
+  animationDuration = animationDuration + 100;
+  document.getElementById('duration').innerHTML = (animationDuration / 1000).toFixed(1) + 's';
+}
+
+var animationLoop = false;
+
+function onLoopChanged(event) {
+  animationLoop = event.target.checked;
 }

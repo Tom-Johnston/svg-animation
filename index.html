@@ -4,23 +4,32 @@
 <script type="text/javascript" src="path.js"></script>
 <script type="text/javascript" src="javascript.js"></script>
 <script type="text/javascript" src="helvetica.js"></script>
-<style>
-html{
-  background: #033;
-}
-#svg{
-  width: 100%;
-  height: 60vw;
-  max-height:60vh;
-}
-#bezier{
-  width: 100%;
-  height: 60vw;
-  max-height:30vh;
-}
-</style>
+<link rel="stylesheet" type="text/css" href="styles.css"/>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
 <body>
   {% include logo.svg %}
-  {% include bezier.svg %}
+  <div style="text-align:center">
+
+      <div id="controls" class="card">
+        {% include bezier.svg %}
+        <div id="controls-container">
+        <div id="loop-wrapper" class="small-control">
+          <span>Loop</span>
+          <input type="checkbox" id="loop">
+          <label for="loop"></label>
+        </div>
+        <div class="small-control">
+          <span>Duration</span>
+          <div id="duration-wrapper">
+            <span id="minus-wrapper"><i id="minus" class="material-icons">remove</i></span>
+            <span id="duration">2.0s</span>
+            <span id="plus-wrapper"><i id="plus" class="material-icons">add</i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
