@@ -60,8 +60,18 @@ function animate(string, nodes, y, hideNodes) {
     }
   }
   var width = +xValues[xValues.length - 1] + (+paths[paths.length - 1].getBBox()[1]);
-  if (width > viewBox[2]) {
-    throw 'String is too long. I might implement multiple lines later.';
+  var maxWidth = viewBox[2] * 0.8;
+  if (width > maxWidth) {
+    xValues = [];
+    for (i = 0; i < paths.length; i++) {
+      paths[i].scalePath(maxWidth / width);
+      if (i === 0) {
+        xValues.push(0);
+      }else {
+        xValues.push(xValues[i - 1] + paths[i - 1].getBBox()[1] + padding * maxWidth / width);
+      }
+    }
+    width = maxWidth;
   }
   var leftMargin = (viewBox[2] - width) / 2 + (+viewBox[0]);
   var pathAnimation;
@@ -260,6 +270,7 @@ var minusPlaying = false;
 var plusPlaying = false;
 
 function onClickMinus() {
+  'use strict';
   if (minusPlaying === false) {
     minusPlaying = true;
     document.getElementById('minus').classList.add('one-eighty');
@@ -270,6 +281,7 @@ function onClickMinus() {
 }
 
 function onClickPlus() {
+  'use strict';
   if (plusPlaying === false) {
     plusPlaying = true;
     document.getElementById('plus').classList.add('one-eighty');
@@ -282,5 +294,6 @@ function onClickPlus() {
 var animationLoop = false;
 
 function onLoopChanged(event) {
+  'use strict';
   animationLoop = event.target.checked;
 }

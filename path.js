@@ -755,8 +755,31 @@ Path.prototype.translatePath = function(x, y) {
   segments[0][1] = +segments[0][1] + (+x);
   segments[0][2] = +segments[0][2] + (+y);
   this.path = Path.convertArrayToString(segments);
-  this.canonicalForm = this.getCanonicalForm();
   return this;
+};
+
+Path.prototype.scalePath = function(x, y) {
+  'use strict';
+  var segments = this.canonicalForm;
+  if (y === null || y === undefined) {
+    y = x;
+  }
+  for (var i = 0; i < segments.length; i++) {
+    var segment = segments[i];
+    var type = segment[0];
+    if (type === 'm') {
+      segment[1] = segment[1] * x;
+      segment[2] = segment[2] * y;
+    }else if (type === 'c') {
+      segment[1] = segment[1] * x;
+      segment[2] = segment[2] * y;
+      segment[3] = segment[3] * x;
+      segment[4] = segment[4] * y;
+      segment[5] = segment[5] * x;
+      segment[6] = segment[6] * y;
+    }
+  }
+  this.path = Path.convertArrayToString(segments);
 };
 
 function PathAnimation(element, targetPath) {
@@ -806,11 +829,12 @@ PathAnimation.animationStep = function(initialPathArray, targetPathArray, that) 
   } else if (that.animationTime === 0) {
     that.pathString = that.initialPath.path;
   } else {
+    var animationProgress = PathAnimation.getProgressAt(that.x1, that.y1, that.x2, that.y2, that.animationTime);
     var currentPathArray = [];
     for (var i = 0; i < initialPathArray.length; i++) {
       currentPathArray.push(initialPathArray[i].slice());
       for (var j = 1; j < currentPathArray[i].length; j++) {
-        currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * PathAnimation.getProgressAt(that.x1, that.y1, that.x2, that.y2, that.animationTime) + (+initialPathArray[i][j]);
+        currentPathArray[i][j] = (+targetPathArray[i][j] - +initialPathArray[i][j]) * animationProgress + (+initialPathArray[i][j]);
         if (Math.abs(currentPathArray[i][j]) < tol) {
           currentPathArray[i][j] = 0;
         }
