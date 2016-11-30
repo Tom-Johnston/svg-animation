@@ -403,7 +403,7 @@ Path.getRelativeSegmentLengthAtPoints = function(segment, points, tol) {
     return lengths;
   } else if (type === 'v' || type === 'h') {
     for (i = 0; i < points.length; i++) {
-      lengths.push(segment[1] * points[i]);
+      lengths.push(Math.abs(segment[1]) * points[i]);
     }
     return lengths;
   } else {
